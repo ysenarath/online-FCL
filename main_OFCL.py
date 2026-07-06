@@ -1,10 +1,22 @@
-import torch
+from datetime import datetime
+
+import matplotlib
 import numpy as np
+import torch
 
 from configuration import config_FCL
 from utils.data_loader import get_loader_all_clients
-from utils.train_utils import get_free_gpu_idx, get_logger, initialize_clients, FedAvg, weightedFedAvg, test_global_model, save_results
-from datetime import datetime
+from utils.train_utils import (
+    FedAvg,
+    get_free_gpu_idx,
+    get_logger,
+    initialize_clients,
+    save_results,
+    test_global_model,
+    weightedFedAvg,
+)
+
+matplotlib.use("Agg")
 
 args = config_FCL.base_parser()
 logger = get_logger(args)
@@ -12,13 +24,15 @@ logger = get_logger(args)
 if torch.cuda.is_available():
     gpu_idx = get_free_gpu_idx()
     args.cuda = True
-    args.device = f'cuda:{gpu_idx}'
+    args.device = f"cuda:{gpu_idx}"
 else:
-    args.device = 'cpu' 
+    args.device = "cpu"
 print(args)
 
 for run in range(args.n_runs):
-    loader_clients, cls_assignment_list, global_test_loader = get_loader_all_clients(args, run)
+    loader_clients, cls_assignment_list, global_test_loader = get_loader_all_clients(
+        args, run
+    )
     clients = initialize_clients(args, loader_clients, cls_assignment_list, run)
 
     start_time = datetime.now()
@@ -35,26 +49,40 @@ for run in range(args.n_runs):
                     else:
                         client.train(samples, labels)
                 else:
-                    print(f'Run {run} - Client {client.client_id} - Task {client.task_id} completed - {client.get_current_task()}')
+                    print(
+                        f"Run {run} - Client {client.client_id} - Task {client.task_id} completed - {client.get_current_task()}"
+                    )
                     # compute loss train
                     logger = client.compute_loss(logger, run)
-                    print(f'Run {run} - Client {client.client_id} - Test time - Task {client.task_id}')
+                    print(
+                        f"Run {run} - Client {client.client_id} - Test time - Task {client.task_id}"
+                    )
                     logger = client.test(logger, run)
                     logger = client.validation(logger, run)
                     logger = client.forgetting(logger, run)
 
                     if client.task_id + 1 >= args.n_tasks:
                         client.train_completed = True
-                        print(f'Run {run} - Client {client.client_id} - Train completed')
+                        print(
+                            f"Run {run} - Client {client.client_id} - Train completed"
+                        )
                         logger = client.balanced_accuracy(logger, run)
                     else:
                         client.task_id += 1
 
         # COMMUNICATION ROUND PART
-        selected_clients = [client.client_id for client in clients if (client.num_batches >= args.burnin and client.num_batches % args.jump == 0 and client.train_completed == False)]
+        selected_clients = [
+            client.client_id
+            for client in clients
+            if (
+                client.num_batches >= args.burnin
+                and client.num_batches % args.jump == 0
+                and client.train_completed == False
+            )
+        ]
         if len(selected_clients) > 1:
             # communication round when all clients process a mini-batch
-            if args.fl_update.startswith('w_'):
+            if args.fl_update.startswith("w_"):
                 global_model = weightedFedAvg(args, selected_clients, clients)
             else:
                 global_model = FedAvg(args, selected_clients, clients)
@@ -67,26 +95,34 @@ for run in range(args.n_runs):
                 clients[client_id].save_last_global_model(global_model)
 
     end_time = datetime.now()
-    print(f'Duration: {end_time - start_time}')
+    print(f"Duration: {end_time - start_time}")
     # global model accuracy when all clients finish their training on all tasks (FedCIL ICLR2023)
     logger = test_global_model(args, global_test_loader, global_model, logger, run)
 
 final_accs = []
 final_fors = []
 for client_id in range(args.n_clients):
-    print(f'Client {client_id}: {clients[client_id].task_list}')
-    print(np.mean(logger['test']['acc'][client_id], 0))
-    final_acc = np.mean(np.mean(logger["test"]["acc"][client_id], 0)[args.n_tasks-1,:], 0)
+    print(f"Client {client_id}: {clients[client_id].task_list}")
+    print(np.mean(logger["test"]["acc"][client_id], 0))
+    final_acc = np.mean(
+        np.mean(logger["test"]["acc"][client_id], 0)[args.n_tasks - 1, :], 0
+    )
     final_for = np.mean(logger["test"]["forget"][client_id])
     final_accs.append(final_acc)
     final_fors.append(final_for)
-    print(f'Final client accuracy: {final_acc}')
-    print(f'Final client forgetting: {final_for}')
-    print(f'Final client balanced accuracy: {np.mean(logger["test"]["bal_acc"][client_id])}')
+    print(f"Final client accuracy: {final_acc}")
+    print(f"Final client forgetting: {final_for}")
+    print(
+        f"Final client balanced accuracy: {np.mean(logger['test']['bal_acc'][client_id])}"
+    )
     print()
 
-print(f'Final average accuracy: {np.mean(final_accs):0.4f} (+-) {np.std(final_accs):0.4f}')
-print(f'Final average forgetting: {np.mean(final_fors):0.4f} (+-) {np.std(final_fors):0.4f}')
+print(
+    f"Final average accuracy: {np.mean(final_accs):0.4f} (+-) {np.std(final_accs):0.4f}"
+)
+print(
+    f"Final average forgetting: {np.mean(final_fors):0.4f} (+-) {np.std(final_fors):0.4f}"
+)
 print()
 
 # save training results
