@@ -1,40 +1,41 @@
 import argparse
 
+
 def base_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--framework",
         type=str,
-        default='FCL',
+        default="FCL",
         help="Framework to evaluate [CL]",
     )
 
     parser.add_argument(
         "--dir_data",
         type=str,
-        default='./data/',
+        default="./data/",
         help="Directory to save the datasets",
     )
 
     parser.add_argument(
         "--dir_output",
         type=str,
-        default='./output/',
+        default="./output/",
         help="Directory to save the output",
     )
 
     parser.add_argument(
         "--dataset_name",
         type=str,
-        default='cifar10',
+        default="cifar10",
         help="Name of the dataset",
     )
 
     parser.add_argument(
         "--model_name",
         type=str,
-        default='default',
+        default="default",
         help="Model architecture [mlp, resnet, default]",
     )
 
@@ -55,7 +56,7 @@ def base_parser():
     parser.add_argument(
         "--optimizer",
         type=str,
-        default='sgd',
+        default="sgd",
         help="Optimizer [sgd, adam]",
     )
 
@@ -74,10 +75,10 @@ def base_parser():
     )
 
     parser.add_argument(
-        "--n_tasks", 
-        type=int, 
-        default=-1, 
-        help="Number of tasks (-1 default number of tasks for each dataset)"
+        "--n_tasks",
+        type=int,
+        default=-1,
+        help="Number of tasks (-1 default number of tasks for each dataset)",
     )
 
     parser.add_argument(
@@ -97,29 +98,28 @@ def base_parser():
     parser.add_argument(
         "--update_strategy",
         type=str,
-        default='balanced',
+        default="balanced",
         help="Memory update strategy [reservoir, balanced]",
     )
 
     parser.add_argument(
         "--sampling_strategy",
         type=str,
-        default='random',
+        default="random",
         help="Memory sampling strategy [random, uncertainty]",
     )
-
 
     parser.add_argument(
         "--balanced_update",
         type=str,
-        default='uncertainty',
+        default="uncertainty",
         help="Update strategy for class-balanced memory management [random, uncertainty]",
     )
 
     parser.add_argument(
         "--uncertainty_score",
         type=str,
-        default='bregman',
+        default="bregman",
         help="Uncertainty metric for uncertainty management (bregman, confidence, margin, entropy, rainbow)",
     )
 
@@ -128,13 +128,12 @@ def base_parser():
         type=int,
         default=50,
         help="Size of the subsample (taken from the memory for replay) for computing the uncertainty scores when sampling from the memory",
-    )    
-
+    )
 
     parser.add_argument(
         "--balanced_step",
         type=str,
-        default='bottomk',
+        default="bottomk",
         help="Sampling strategy for uncertainty-based class-balanced memory management (step (step-sized), topk (top-k), bottomk (bottom-k))",
     )
 
@@ -149,7 +148,7 @@ def base_parser():
     parser.add_argument(
         "--overlap",
         type=str,
-        default='overlap',
+        default="overlap",
         help="Overlapping tasks across clients (overlap, non-overlap)",
     )
 
@@ -170,7 +169,7 @@ def base_parser():
     parser.add_argument(
         "--fl_update",
         type=str,
-        default='w_favg',
+        default="w_favg",
         help="Memory sampling strategy [favg (FedAvg), w_favg (weighted FedAvg), fprox (FedProx), w_fprox (weighted fprox)]",
     )
 
@@ -179,7 +178,7 @@ def base_parser():
         type=float,
         default=0.01,
         help="Parameter for proximal term in FedProx",
-    )    
+    )
 
     args = parser.parse_args()
     return args
