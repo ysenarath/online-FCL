@@ -1320,6 +1320,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "torch" },
     { name = "torchvision" },
+    { name = "tqdm" },
     { name = "transformers" },
 ]
 
@@ -1333,6 +1334,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.9.0" },
     { name = "torch", specifier = "==2.2.2" },
     { name = "torchvision", specifier = "==0.17.2" },
+    { name = "tqdm", specifier = ">=4.68.3" },
     { name = "transformers", specifier = "==4.40.2" },
 ]
 
