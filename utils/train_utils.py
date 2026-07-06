@@ -1,19 +1,25 @@
-import os, pickle
-import torch
-import numpy as np
+import os
+import pickle
 from collections import defaultdict
-from models.resnet import SlimResNet18
-from models.mlp import MLP
+
+import numpy as np
+import torch
 from sklearn.metrics import balanced_accuracy_score
 from torchvision.models import resnet18, resnet50
-from utils.data_loader import get_statistics
+
+from models.mlp import MLP
+from models.resnet import SlimResNet18
 from utils.cl_utils import Client
+from utils.data_loader import get_statistics
 from utils.utils_memory import Memory
+
 
 def get_free_gpu_idx():
     """Get the index of the GPU with current lowest memory usage."""
     os.system("nvidia-smi -q -d Memory |grep -A4 GPU|grep Used  > ./output/tmp")
-    memory_available = [int(x.split()[2]) for x in open("./output/tmp", "r").readlines()]
+    memory_available = [
+        int(x.split()[2]) for x in open("./output/tmp", "r").readlines()
+    ]
     return np.argmin(memory_available)
 
 
@@ -21,51 +27,57 @@ def get_logger(args):
     _, _, _, _, _ = get_statistics(args)
 
     log = {}
-    log['train'] = defaultdict(dict)
+    log["train"] = defaultdict(dict)
     for client_id in range(args.n_clients):
-        log['train']['loss'][client_id] = np.zeros([args.n_tasks, args.n_runs])
+        log["train"]["loss"][client_id] = np.zeros([args.n_tasks, args.n_runs])
 
-    for mode in ['test', 'val']:
+    for mode in ["test", "val"]:
         log[mode] = defaultdict(dict)
         for client_id in range(args.n_clients):
-            log[mode]['acc'][client_id] = np.zeros([args.n_runs, args.n_tasks, args.n_tasks])
-            log[mode]['forget'][client_id] = np.zeros([args.n_runs])
-            log[mode]['bal_acc'][client_id] = np.zeros([args.n_runs])
+            log[mode]["acc"][client_id] = np.zeros(
+                [args.n_runs, args.n_tasks, args.n_tasks]
+            )
+            log[mode]["forget"][client_id] = np.zeros([args.n_runs])
+            log[mode]["bal_acc"][client_id] = np.zeros([args.n_runs])
 
-    log['global_test'] = defaultdict(dict)
-    log['global_test']['bal_acc'] = np.zeros([args.n_runs])
+    log["global_test"] = defaultdict(dict)
+    log["global_test"]["bal_acc"] = np.zeros([args.n_runs])
     for task_id in range(args.n_tasks):
-        log['global_test']['acc'] = np.zeros([args.n_runs, args.n_tasks, args.n_tasks])
+        log["global_test"]["acc"] = np.zeros([args.n_runs, args.n_tasks, args.n_tasks])
 
     return log
 
 
 def custom_resnet(args, model):
-    model.conv1 = torch.nn.Conv2d(args.input_size[0], 64, kernel_size=7, stride=2, padding=3, bias=False)
+    model.conv1 = torch.nn.Conv2d(
+        args.input_size[0], 64, kernel_size=7, stride=2, padding=3, bias=False
+    )
     num_features = model.fc.in_features
     model.fc = torch.nn.Linear(num_features, args.n_classes)
     return model.to(args.device)
 
 
 def initialize_model(args):
-    if args.model_name == 'resnet18':
+    if args.model_name == "resnet18":
         model = resnet18().to(args.device)
-    if args.model_name == 'resnet18_pre':
-        resnet = resnet18(weights='DEFAULT')
+    if args.model_name == "resnet18_pre":
+        resnet = resnet18(weights="DEFAULT")
         model = custom_resnet(args, resnet)
-    if args.model_name == 'resnet50':
+    if args.model_name == "resnet50":
         model = resnet50().to(args.device)
-    if args.model_name == 'resnet50_pre':
-        resnet = resnet50(weights='DEFAULT')
+    if args.model_name == "resnet50_pre":
+        resnet = resnet50(weights="DEFAULT")
         model = custom_resnet(args, resnet)
-    if args.model_name == 'resnet':
-        model = SlimResNet18(nclasses=args.n_classes, input_size=args.input_size).to(args.device)
-    if args.model_name == 'mlp':
+    if args.model_name == "resnet":
+        model = SlimResNet18(nclasses=args.n_classes, input_size=args.input_size).to(
+            args.device
+        )
+    if args.model_name == "mlp":
         # model = MLP(in_channels=args.input_size, hidden_channels=[256,128,64,32,args.n_classes], dropout=0.4).to(args.device)
         model = MLP(args.input_size, [512], args.n_classes).to(args.device)
-    if args.optimizer == 'sgd':
+    if args.optimizer == "sgd":
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
-    if args.optimizer == 'adam':
+    if args.optimizer == "adam":
         optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
 
     criterion = torch.nn.CrossEntropyLoss()
@@ -85,7 +97,16 @@ def initialize_clients(args, loader_clients, cls_assignment_list, run):
 
         model, optimizer, criterion = initialize_model(args)
         memory_client = Memory(args)
-        client = Client(args, loader_client, model, optimizer, criterion, memory_client, client_id, cls_assignment_client)
+        client = Client(
+            args,
+            loader_client,
+            model,
+            optimizer,
+            criterion,
+            memory_client,
+            client_id,
+            cls_assignment_client,
+        )
         clients.append(client)
 
     # initialize global model
@@ -102,7 +123,9 @@ def FedAvg(args, selected_clients, clients):
     client_weights = [clients[client_id].get_weight() for client_id in selected_clients]
     total_weights = sum(client_weights)
     client_weights = [weight / total_weights for weight in client_weights]
-    client_params = [list(clients[client_id].get_parameters()) for client_id in selected_clients]
+    client_params = [
+        list(clients[client_id].get_parameters()) for client_id in selected_clients
+    ]
 
     weighted_params = []
     for i in range(len(global_params)):
@@ -170,7 +193,7 @@ def modelAvg(args, list_models):
 
 
 @torch.no_grad()
-def test_global_model(args, test_loader, model, logger, run, mode='global_test'):
+def test_global_model(args, test_loader, model, logger, run, mode="global_test"):
     task_id = args.n_tasks - 1
     model.eval()
     y_true = []
@@ -187,27 +210,36 @@ def test_global_model(args, test_loader, model, logger, run, mode='global_test')
             total += len(labels)
             y_true.append(labels)
             y_pred.append(preds)
-        accuracy = total_correct/total
-        logger[mode]['acc'][run][task_id][task_id_eval] = accuracy
+        accuracy = total_correct / total
+        logger[mode]["acc"][run][task_id][task_id_eval] = accuracy
 
     y_true = torch.cat(y_true).cpu()
     y_pred = torch.cat(y_pred).cpu()
-    balanced_accuracy = balanced_accuracy_score(y_true, y_pred)    
-    logger[mode]['bal_acc'][run] = balanced_accuracy
+    balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
+    logger[mode]["bal_acc"][run] = balanced_accuracy
     return logger
 
+
 def save_results(args, logger):
-    logger_fn = f'{args.dir_results}/logger.pkl'
-    with open(logger_fn, 'wb') as outfile:
+    logger_fn = f"{args.dir_results}/logger.pkl"
+    with open(logger_fn, "wb") as outfile:
         pickle.dump(logger, outfile)
-        outfile.close()  
+        outfile.close()
+
 
 def compute_avg_acc_for(args, logger):
     final_accs = []
     final_fors = []
     for client_id in range(args.n_clients):
-        final_acc = np.mean(np.mean(logger["test"]["acc"][client_id], 0)[args.n_tasks-1,:], 0)
+        final_acc = np.mean(
+            np.mean(logger["test"]["acc"][client_id], 0)[args.n_tasks - 1, :], 0
+        )
         final_for = np.mean(logger["test"]["forget"][client_id])
         final_accs.append(final_acc)
         final_fors.append(final_for)
-    return np.mean(final_accs), np.std(final_accs), np.mean(final_fors), np.std(final_fors)
+    return (
+        np.mean(final_accs),
+        np.std(final_accs),
+        np.mean(final_fors),
+        np.std(final_fors),
+    )

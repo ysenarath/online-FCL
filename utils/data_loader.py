@@ -1,20 +1,20 @@
-import os, pickle
+import os
+import pickle
 
 os.environ["KERAS_BACKEND"] = "torch"
-import torch
 import random
+from collections import Counter
+
 import medmnist
 import numpy as np
+import torch
 import torch.nn.functional as F
-
-from collections import Counter
-from datasets import load_dataset
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 from sklearn.datasets import fetch_20newsgroups
-from transformers import AutoModel, AutoTokenizer
-from torchvision import datasets, transforms
 from torch import Tensor
+from torchvision import datasets, transforms
 from tqdm import tqdm
+from transformers import AutoModel, AutoTokenizer
 
 
 def get_mean(args):
