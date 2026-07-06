@@ -3,6 +3,7 @@ from datetime import datetime
 import matplotlib
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from configuration import config_FCL
 from utils.data_loader import get_loader_all_clients
@@ -29,12 +30,17 @@ else:
     args.device = "cpu"
 print(args)
 
-for run in range(args.n_runs):
+for run in tqdm(range(args.n_runs), desc="Runs"):
     loader_clients, cls_assignment_list, global_test_loader = get_loader_all_clients(
         args, run
     )
     clients = initialize_clients(args, loader_clients, cls_assignment_list, run)
 
+    task_progress = tqdm(
+        total=args.n_tasks * args.n_clients,
+        desc=f"Run {run} tasks",
+        leave=False,
+    )
     start_time = datetime.now()
     while not all([client.train_completed for client in clients]):
         for client in clients:
@@ -60,6 +66,7 @@ for run in range(args.n_runs):
                     logger = client.test(logger, run)
                     logger = client.validation(logger, run)
                     logger = client.forgetting(logger, run)
+                    task_progress.update(1)
 
                     if client.task_id + 1 >= args.n_tasks:
                         client.train_completed = True
@@ -94,6 +101,7 @@ for run in range(args.n_runs):
                 clients[client_id].update_parameters(global_parameters)
                 clients[client_id].save_last_global_model(global_model)
 
+    task_progress.close()
     end_time = datetime.now()
     print(f"Duration: {end_time - start_time}")
     # global model accuracy when all clients finish their training on all tasks (FedCIL ICLR2023)
