@@ -1,7 +1,8 @@
 import argparse
+from configuration.config import Config
 
 
-def base_parser():
+def base_parser() -> Config:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
