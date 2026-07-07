@@ -15,6 +15,7 @@ from torch import Tensor
 from torchvision import datasets, transforms
 from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
+from configuration.config import Config
 
 
 def get_mean(args):
@@ -50,7 +51,7 @@ def get_mean(args):
 
 
 # taken from https://github.com/clovaai/rainbow-memory/blob/master/utils/data_loader.py
-def get_statistics(args):
+def get_statistics(args: Config):
     """
     Returns statistics of the dataset given a string of dataset name. To add new dataset, please add required statistics here
     """
@@ -267,7 +268,7 @@ def get_statistics(args):
     )
 
 
-def get_data(args):
+def get_data(args: Config):
     mean, std, n_classes, inp_size, in_channels = get_statistics(args)
 
     transforms_list = [
